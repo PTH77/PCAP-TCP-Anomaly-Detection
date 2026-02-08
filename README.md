@@ -56,7 +56,12 @@ TTL wskazuje liczbę hopów, które pakiet może przejść przez sieć. Normalne
 Monitorowanie TTL pomaga wykryć rozproszone ataki, gdzie pakiety pochodzą z różnych źródeł mimo pokazywania tego samego źródłowego IP. Również wykrywa próby fingerprinting systemu operacyjnego, gdzie atakujący zmieniają TTL aby imitować różne systemy.
 
 **W Tym PCAP:**
-Powinniśmy sprawdzić czy 192.168.1.1 utrzymuje spójny TTL we wszystkich pakietach. Zmiany TTL wskazywałyby na spoofing lub użycie proxy. Docelowe adresy IP będą miały różne TTL w zależności od odległości geograficznej.
+Zainfekowana maszyna 192.168.1.1 używa TTL = 128 we wszystkich wychodzących pakietach. Ta wartość jest charakterystyczna dla systemu Windows (domyślne TTL = 128). Spójność tej wartości we wszystkich pakietach potwierdza że:
+- Pakiety faktycznie pochodzą z 192.168.1.1 (brak spoofingu)
+- System operacyjny to Windows
+- Brak proxy/NAT manipulującego TTL
+
+Docelowe adresy IP będą miały różne TTL w odpowiedziach w zależności od odległości geograficznej i liczby routerów na ścieżce.
 
 ### Sekwencje Numerów ACK
 
@@ -161,9 +166,10 @@ Jeśli 192.168.1.1 używa timestamps, wartości powinny rosnąć konsystentnie. 
 ### Główne Cechy z Analizy TCP
 
 **Cechy oparte na TTL:**
-- Wynik spójności TTL: odchylenie standardowe wartości TTL od źródłowego IP
+- Spójność TTL: odchylenie standardowe wartości TTL od źródłowego IP (dla 192.168.1.1 = 0, wszędzie 128)
 - Korelacja geograficzna TTL: czy TTL odpowiada oczekiwanej liczbie hopów do celu
 - Wskaźnik manipulacji TTL: czy TTL zmienia się w sposób niespójny z routingiem
+- OS fingerprint match: TTL=128 potwierdza Windows (vs Linux=64, Cisco=255)
 
 **Cechy oparte na ACK:**
 - Wskaźnik niekompletnych handshake'ów: procent sesji bez końcowego ACK
@@ -264,7 +270,9 @@ Wyjście modelu: wynik anomalii od -1 (ekstremalny outlier) do 1 (normalny). Pr�
 ### Analiza Protokołu TCP
 
 Oczekiwane ustalenia:
-- Wartości TTL powinny być spójne dla 192.168.1.1 jeśli to prawdziwy lokalny host
+- Wartości TTL są w pełni spójne dla 192.168.1.1: TTL=128 we wszystkich pakietach
+- TTL=128 potwierdza że zainfekowana maszyna używa systemu Windows
+- Brak zmian TTL wyklucza spoofing IP lub pośredniczące proxy
 - Sekwencje ACK pokażą 35 przypadków brakujących końcowych pakietów ACK
 - Rozmiary okna prawdopodobnie będą małe/standardowe jeśli bot minimalizuje zasoby
 - Opcje TCP prawdopodobnie będą uproszczone (brak SACK/timestamps) jeśli to narzędzie skanujące
@@ -273,7 +281,8 @@ Oczekiwane ustalenia:
 ### Prognoza Modelu ML
 
 Wektor cech dla 192.168.1.1:
-- Spójność TTL: Wysoka (jeśli lokalny) lub Zmienna (jeśli spoofowany/proxy)
+- Spójność TTL: Maksymalna (TTL=128 we wszystkich pakietach, odchylenie=0)
+- Fingerprint OS: Windows (TTL=128 charakterystyczne dla Windows)
 - Wskaźnik niekompletnych handshake'ów: 0.35 (35%)
 - Częstotliwość połączeń: 36.1 połączeń/sekundę
 - Średni czas trwania sesji: 3.24 sekundy
