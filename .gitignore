@@ -1,0 +1,18 @@
+# Ignore raw PCAP files
+*.pcap
+*.pcapng
+
+# Ignore all raw and processed data
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+
+# Python cache & venv
+__pycache__/
+*.pyc
+.venv/
+
+# OS files
+Thumbs.db
+.DS_Store
