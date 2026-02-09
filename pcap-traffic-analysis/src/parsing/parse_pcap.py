@@ -7,8 +7,9 @@ import pandas as pd
 from pathlib import Path
 import sys
 
-PCAP_FILE = r"C:\Users\PC\OneDrive - Polsko-Japońska Akademia Technik Komputerowych\Desktop\PCAP-TCP-Anomaly-Detection\pcap-traffic-analysis\data\raw\toolsmith.pcap"
-OUTPUT_CSV = r"C:\Users\PC\OneDrive - Polsko-Japońska Akademia Technik Komputerowych\Desktop\PCAP-TCP-Anomaly-Detection\pcap-traffic-analysis\data\bronze\packets.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PCAP_FILE = PROJECT_ROOT / "data" / "raw" / "toolsmith.pcap"
+OUTPUT_CSV = PROJECT_ROOT / "data" / "bronze" / "packets.csv"
 
 def parse_packet(pkt, frame_number):
     packet_data = {
@@ -99,12 +100,12 @@ def main():
     print("PCAP Parser - Bronze Layer")
     print("=" * 60)
     
-    if not Path(PCAP_FILE).exists():
+    if not PCAP_FILE.exists():
         print(f"ERROR: File not found {PCAP_FILE}")
         sys.exit(1)
     
     print(f"Loading: {PCAP_FILE}")
-    packets = rdpcap(PCAP_FILE)
+    packets = rdpcap(str(PCAP_FILE))
     print(f"Loaded {len(packets)} packets")
     
     print(f"Parsing packets...")
@@ -119,11 +120,11 @@ def main():
     
     df = pd.DataFrame(parsed_packets)
     
-    Path(OUTPUT_CSV).parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUTPUT_CSV, index=False)
     
     print(f"\nSaved {len(df)} packets to: {OUTPUT_CSV}")
-    print(f"Size: {Path(OUTPUT_CSV).stat().st_size / 1024:.1f} KB")
+    print(f"Size: {OUTPUT_CSV.stat().st_size / 1024:.1f} KB")
     
     print(f"\nFirst 3 packets:")
     print(df.head(3).to_string())
@@ -134,8 +135,6 @@ def main():
     print(f"  TCP packets: {df['tcp_flags'].notna().sum()}")
     print(f"  Average TTL: {df['ttl'].mean():.1f}")
     print(f"  Average Window Size: {df['tcp_window'].mean():.0f}")
-    
-    print("\nDone.")
 
 
 if __name__ == "__main__":
