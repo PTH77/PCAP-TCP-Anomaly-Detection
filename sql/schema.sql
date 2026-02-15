@@ -1,189 +1,113 @@
--- BRONZE LAYER - Raw packets from PCAP
+-- ================================================================
+-- BRONZE LAYER - Raw packets from tshark
+-- ================================================================
 
 DROP TABLE IF EXISTS bronze_packets CASCADE;
 
 CREATE TABLE bronze_packets (
-    id BIGSERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
 
-    pcap_source TEXT,
-    frame_number INTEGER,
+    -- Frame info
+    frame_number BIGINT,
+    frame_time_epoch DOUBLE PRECISION,
+    frame_len INTEGER,
 
-    timestamp DOUBLE PRECISION NOT NULL,
-    inter_arrival DOUBLE PRECISION,
+    -- IP layer
+    ip_src TEXT,
+    ip_dst TEXT,
+    ip_ttl INTEGER,
+    ip_proto INTEGER,
 
-    packet_length INTEGER,
-    payload_size INTEGER,
-
-    src_ip TEXT,
-    dst_ip TEXT,
-    direction TEXT,
-
-    protocol INTEGER,
-    ttl INTEGER,
-
-    src_port INTEGER,
-    dst_port INTEGER,
-
+    -- TCP layer
+    tcp_srcport INTEGER,
+    tcp_dstport INTEGER,
+    tcp_len INTEGER,
+    tcp_flags TEXT,
+    tcp_window_size INTEGER,
     tcp_seq BIGINT,
     tcp_ack BIGINT,
-    tcp_flags TEXT,
-    tcp_window INTEGER,
+    tcp_options_mss_val INTEGER,
+    tcp_options_sack_perm TEXT,
 
-    tcp_mss INTEGER,
-    tcp_sack_permitted BOOLEAN,
+    -- UDP layer
+    udp_srcport INTEGER,
+    udp_dstport INTEGER,
 
+    -- Metadata
     loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_bronze_time ON bronze_packets(timestamp);
-CREATE INDEX idx_bronze_ips ON bronze_packets(src_ip, dst_ip);
-CREATE INDEX idx_bronze_ports ON bronze_packets(src_port, dst_port);
-CREATE INDEX idx_bronze_protocol ON bronze_packets(protocol);
-CREATE INDEX idx_bronze_pcap ON bronze_packets(pcap_source);
+COMMENT ON TABLE bronze_packets IS 'Raw packets from tshark - immutable bronze layer';
 
+-- ================================================================
+-- SILVER LAYER - TCP Sessions
+-- ================================================================
 
-DROP TABLE IF EXISTS silver_flows CASCADE;
+DROP TABLE IF EXISTS silver_sessions CASCADE;
 
-CREATE TABLE silver_flows (
-    flow_id TEXT PRIMARY KEY,
+CREATE TABLE silver_sessions (
+    session_id TEXT PRIMARY KEY,
 
+    -- Session identity
     src_ip TEXT NOT NULL,
     dst_ip TEXT NOT NULL,
     src_port INTEGER,
     dst_port INTEGER,
     protocol INTEGER,
 
-    direction TEXT,
-
+    -- Timing
     start_time DOUBLE PRECISION,
     end_time DOUBLE PRECISION,
     duration DOUBLE PRECISION,
 
+    -- Volume
     packet_count INTEGER,
     total_bytes BIGINT,
     avg_packet_size DOUBLE PRECISION,
-    bytes_per_second DOUBLE PRECISION,
 
+    -- TCP Flags
     syn_count INTEGER,
     ack_count INTEGER,
     fin_count INTEGER,
     rst_count INTEGER,
     psh_count INTEGER,
 
+    -- Session Quality
     handshake_complete BOOLEAN,
     proper_close BOOLEAN,
 
+    -- Network Fingerprint
     ttl_mean DOUBLE PRECISION,
     ttl_std DOUBLE PRECISION,
     window_mean DOUBLE PRECISION,
     window_std DOUBLE PRECISION,
 
+    -- TCP Options
     mss INTEGER,
     sack_permitted BOOLEAN,
 
+    -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- AGGREGATE (ONLY PACKETS WITH IP)
+COMMENT ON TABLE silver_sessions IS 'TCP sessions aggregated from bronze packets';
 
-INSERT INTO silver_flows (
-    flow_id,
-    src_ip, dst_ip, src_port, dst_port, protocol,
-    start_time, end_time, duration,
-    packet_count, total_bytes, avg_packet_size, bytes_per_second,
-    syn_count, ack_count, fin_count, rst_count, psh_count,
-    handshake_complete, proper_close,
-    ttl_mean, ttl_std, window_mean, window_std,
-    mss, sack_permitted
-)
+-- ================================================================
+-- GOLD LAYER - ML Features (flow-based)
+-- ================================================================
 
-SELECT
-    CONCAT(
-        src_ip, ':', COALESCE(src_port,0), '-',
-        dst_ip, ':', COALESCE(dst_port,0), '-',
-        COALESCE(protocol,0)
-    ) AS flow_id,
-
-    src_ip,
-    dst_ip,
-    src_port,
-    dst_port,
-    protocol,
-
-    MIN(timestamp),
-    MAX(timestamp),
-    MAX(timestamp) - MIN(timestamp),
-
-    COUNT(*),
-    SUM(packet_length),
-    AVG(packet_length),
-    SUM(packet_length) / NULLIF(MAX(timestamp)-MIN(timestamp),0),
-
-    SUM(CASE WHEN tcp_flags LIKE '%S%' THEN 1 ELSE 0 END),
-    SUM(CASE WHEN tcp_flags LIKE '%A%' THEN 1 ELSE 0 END),
-    SUM(CASE WHEN tcp_flags LIKE '%F%' THEN 1 ELSE 0 END),
-    SUM(CASE WHEN tcp_flags LIKE '%R%' THEN 1 ELSE 0 END),
-    SUM(CASE WHEN tcp_flags LIKE '%P%' THEN 1 ELSE 0 END),
-
-    CASE
-        WHEN SUM(CASE WHEN tcp_flags LIKE '%S%' THEN 1 ELSE 0 END) > 0
-         AND SUM(CASE WHEN tcp_flags = 'SA' THEN 1 ELSE 0 END) > 0
-        THEN TRUE ELSE FALSE
-    END,
-
-    CASE
-        WHEN SUM(CASE WHEN tcp_flags LIKE '%F%' THEN 1 ELSE 0 END) > 0
-        THEN TRUE ELSE FALSE
-    END,
-
-    AVG(ttl),
-    STDDEV(ttl),
-    AVG(tcp_window),
-    STDDEV(tcp_window),
-
-    MAX(tcp_mss),
-    BOOL_OR(COALESCE(tcp_sack_permitted, FALSE))
-
-FROM bronze_packets
-WHERE src_ip IS NOT NULL
-  AND dst_ip IS NOT NULL
-GROUP BY src_ip, dst_ip, src_port, dst_port, protocol;
-
--- DIRECTION
-
-UPDATE silver_flows
-SET direction =
-    CASE
-        WHEN src_ip LIKE '10.%' THEN 'outbound'
-        WHEN src_ip LIKE '192.168.%' THEN 'outbound'
-        WHEN src_ip LIKE '172.16.%' THEN 'outbound'
-        ELSE 'inbound'
-    END;
-
--- INDEXES
-
-CREATE INDEX idx_silver_src_ip ON silver_flows(src_ip);
-CREATE INDEX idx_silver_dst_ip ON silver_flows(dst_ip);
-CREATE INDEX idx_silver_direction ON silver_flows(direction);
-CREATE INDEX idx_silver_protocol ON silver_flows(protocol);
-
--- VALIDATION
-
-SELECT COUNT(*) AS total_flows FROM silver_flows;
-SELECT direction, COUNT(*) FROM silver_flows GROUP BY direction;
-SELECT protocol, COUNT(*) FROM silver_flows GROUP BY protocol;
-
-DROP TABLE IF EXISTS gold;
+DROP TABLE IF EXISTS gold CASCADE;
 
 CREATE TABLE gold (
     flow_id TEXT PRIMARY KEY,
 
-    -- VOLUME (log scale)
+    -- VOLUME (log transformed)
     log_packet_count DOUBLE PRECISION,
-    log_total_bytes DOUBLE PRECISION,
 
     -- TIME
     duration DOUBLE PRECISION,
+    packets_per_second DOUBLE PRECISION,
+    bytes_per_second DOUBLE PRECISION,
 
     -- SIZE
     avg_packet_size DOUBLE PRECISION,
@@ -194,7 +118,7 @@ CREATE TABLE gold (
     rst_ratio DOUBLE PRECISION,
     fin_ratio DOUBLE PRECISION,
 
-    -- SESSION FLAGS
+    -- SESSION QUALITY
     handshake_complete BOOLEAN,
     proper_close BOOLEAN,
 
@@ -204,12 +128,53 @@ CREATE TABLE gold (
     window_mean DOUBLE PRECISION,
     window_std DOUBLE PRECISION,
 
-    -- TCP OPTIONS PROFILE
+    -- TCP OPTIONS
     mss_present BOOLEAN,
     sack_present BOOLEAN,
 
-    -- TARGET (do wypełnienia)
+    -- BEHAVIORAL
+    is_burst BOOLEAN,
+
+    -- TARGET
     label TEXT,
 
+    -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+COMMENT ON TABLE gold IS 'ML-ready features - one row per flow';
+
+-- ================================================================
+-- GOLD ANOMALIES - Detected anomalies
+-- ================================================================
+
+DROP TABLE IF EXISTS gold_anomalies CASCADE;
+
+CREATE TABLE gold_anomalies (
+    anomaly_id SERIAL PRIMARY KEY,
+    src_ip TEXT NOT NULL,
+
+    detection_method TEXT,
+    anomaly_type TEXT,
+
+    anomaly_score DOUBLE PRECISION,
+    confidence DOUBLE PRECISION,
+    evidence JSONB,
+
+    severity TEXT CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_anomalies_src_ip ON gold_anomalies(src_ip);
+
+-- ================================================================
+-- VERIFY
+-- ================================================================
+
+SELECT
+    tablename,
+    schemaname
+FROM pg_tables
+WHERE tablename IN ('bronze_packets', 'silver_sessions', 'gold', 'gold_anomalies')
+ORDER BY tablename;
