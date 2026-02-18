@@ -1,0 +1,32 @@
+{
+  "model_type": "XGBoost Malicious Hunter",
+  "config": "aggressive",
+  "features": [
+    "log_packet_count",
+    "duration",
+    "bytes_per_second",
+    "ttl_mean",
+    "ttl_std",
+    "window_std",
+    "is_burst"
+  ],
+  "classes": [
+    "background",
+    "benign",
+    "malicious",
+    "suspicious"
+  ],
+  "performance": {
+    "test_accuracy": 0.8822498916872304,
+    "malicious_f1": 0.6858397824722862,
+    "malicious_recall": 0.9992381532835594
+  },
+  "confidence_thresholds": {
+    "very_high": 0.9,
+    "high": 0.75,
+    "medium": 0.5,
+    "low": 0.3,
+    "very_low": 0.0
+  },
+  "training_date": "2026-02-16"
+}

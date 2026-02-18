@@ -1,0 +1,79 @@
+{
+  "model": "XGBoost",
+  "config": {
+    "n_estimators": 1000,
+    "learning_rate": 0.05,
+    "max_depth": 4,
+    "min_child_weight": 10,
+    "gamma": 1.0,
+    "subsample": 0.7,
+    "colsample_bytree": 0.7,
+    "colsample_bylevel": 0.7,
+    "reg_alpha": 0.5,
+    "reg_lambda": 2.0,
+    "max_delta_step": 2,
+    "objective": "multi:softprob",
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "random_state": 42,
+    "verbosity": 0,
+    "early_stopping_rounds": 50
+  },
+  "train_accuracy": 0.9994395938703814,
+  "test_accuracy": 0.9994914009079435,
+  "train_f1": 0.9994715384090549,
+  "test_f1": 0.9994876270646451,
+  "overfitting_gap": -1.6088655590218437e-05,
+  "train_time": 32.445531368255615,
+  "best_iteration": 999,
+  "feature_importance": [
+    {
+      "feature": "ack_ratio",
+      "importance": 0.15364131331443787
+    },
+    {
+      "feature": "sack_present",
+      "importance": 0.12823738157749176
+    },
+    {
+      "feature": "rst_ratio",
+      "importance": 0.10528061538934708
+    },
+    {
+      "feature": "log_packet_count",
+      "importance": 0.1001608669757843
+    },
+    {
+      "feature": "syn_ratio",
+      "importance": 0.09354052692651749
+    },
+    {
+      "feature": "window_std",
+      "importance": 0.0935223326086998
+    },
+    {
+      "feature": "fin_ratio",
+      "importance": 0.08332117646932602
+    },
+    {
+      "feature": "bytes_per_second",
+      "importance": 0.07329826056957245
+    },
+    {
+      "feature": "duration",
+      "importance": 0.060976408421993256
+    },
+    {
+      "feature": "is_burst",
+      "importance": 0.0478968471288681
+    },
+    {
+      "feature": "ttl_mean",
+      "importance": 0.03102843463420868
+    },
+    {
+      "feature": "ttl_std",
+      "importance": 0.029095830395817757
+    }
+  ]
+}

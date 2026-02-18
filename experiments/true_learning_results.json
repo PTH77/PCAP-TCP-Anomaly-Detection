@@ -1,0 +1,89 @@
+{
+  "experiment": "true_learning",
+  "features_removed": [
+    "syn_ratio",
+    "rst_ratio",
+    "fin_ratio",
+    "sack_present",
+    "ack_ratio"
+  ],
+  "features_used": [
+    "log_packet_count",
+    "duration",
+    "bytes_per_second",
+    "ttl_mean",
+    "ttl_std",
+    "window_std",
+    "is_burst"
+  ],
+  "rf": {
+    "test_accuracy": 0.8799329402678622,
+    "test_f1": 0.8829194951648616,
+    "overfitting_gap": 0.001016076902228158,
+    "feature_importance": [
+      {
+        "feature": "log_packet_count",
+        "importance": 0.27377915620898774
+      },
+      {
+        "feature": "window_std",
+        "importance": 0.19707336007167453
+      },
+      {
+        "feature": "duration",
+        "importance": 0.1956150877344684
+      },
+      {
+        "feature": "bytes_per_second",
+        "importance": 0.18597642820229396
+      },
+      {
+        "feature": "ttl_mean",
+        "importance": 0.07250127865961688
+      },
+      {
+        "feature": "ttl_std",
+        "importance": 0.06150866058219143
+      },
+      {
+        "feature": "is_burst",
+        "importance": 0.013546028540767184
+      }
+    ]
+  },
+  "xgb": {
+    "test_accuracy": 0.8771827377700755,
+    "test_f1": 0.840509739678328,
+    "overfitting_gap": 0.009568131094890187,
+    "feature_importance": [
+      {
+        "feature": "log_packet_count",
+        "importance": 0.40088388323783875
+      },
+      {
+        "feature": "window_std",
+        "importance": 0.160078763961792
+      },
+      {
+        "feature": "bytes_per_second",
+        "importance": 0.134336456656456
+      },
+      {
+        "feature": "duration",
+        "importance": 0.12217579782009125
+      },
+      {
+        "feature": "ttl_mean",
+        "importance": 0.10303034633398056
+      },
+      {
+        "feature": "ttl_std",
+        "importance": 0.06422499567270279
+      },
+      {
+        "feature": "is_burst",
+        "importance": 0.015269780531525612
+      }
+    ]
+  }
+}
